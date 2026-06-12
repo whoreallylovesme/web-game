@@ -250,15 +250,16 @@
 
 Предпочтительный стек:
 
-- клиент: Godot;
+- MVP-клиент: Phaser 3 + HTML5/WebGL/Canvas;
+- будущий production-клиент: Phaser, если останемся в браузерном стеке, или Godot, если понадобится более тяжелый редактор/asset pipeline/export tooling;
 - backend: Python/FastAPI;
 - база: PostgreSQL;
-- C++: для тяжелой симуляции, генерации или расширений Godot, если понадобится.
+- C++: для тяжелой симуляции, генерации или нативных модулей, если понадобится.
 
 Структура репозитория:
 
 ```text
-client/   Godot project
+frontend/ Phaser browser client
 backend/  FastAPI backend
 shared/   shared message schemas and constants
 deploy/   nginx/systemd/deploy scripts
@@ -327,7 +328,7 @@ docs/     design docs
 ## Open Questions
 
 - Рабочее название игры.
-- 2D или 2.5D в Godot.
+- Оставаться на Phaser или позже переносить production-клиент в Godot.
 - Онлайн-кооп через выделенный сервер или сначала локальный/hosted кооп.
 - Насколько редактор нейросети влияет на босса в MVP.
 - Какие 4 стихии окончательно выбрать.

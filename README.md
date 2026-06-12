@@ -2,6 +2,8 @@
 
 Playable browser prototype for a techno-fantasy top-down roguelite set in 2027.
 
+The combat client uses Phaser 3 Arcade Physics.
+
 ## Run Locally
 
 ```bash
@@ -17,6 +19,8 @@ http://127.0.0.1:8787/
 ## Controls
 
 - Move: `WASD` or arrows
+- Run: hold `Shift`
+- Dash: `Space`
 - Aim/fire: mouse
 - Mix elements: `1` fire, `2` ice, `3` volt, `4` matter
 - Cast spell: `F`
@@ -38,7 +42,7 @@ http://127.0.0.1:8787/
 ## Project Layout
 
 ```text
-frontend/  Canvas game client
+frontend/  Phaser browser game client
 backend/   Python static server and leaderboard API
 docs/      Design docs
 ```

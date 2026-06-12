@@ -8,7 +8,7 @@
   </head>
   <body>
     <main id="app">
-      <canvas id="game" width="960" height="540" aria-label="Neural Run 2027 game"></canvas>
+      <div id="gameHost" aria-label="Neural Run 2027 game"></div>
 
       <section id="mainMenu" class="screen screen-active">
         <div class="shell">
@@ -89,6 +89,28 @@
         </div>
       </section>
 
+      <section id="tutorialScreen" class="screen">
+        <div class="tutorial">
+          <div class="status-row">
+            <span>FIELD GUIDE</span>
+            <span>LAB-7 SURVIVAL PROTOCOL</span>
+          </div>
+          <h2>Перед входом</h2>
+          <div class="guide-grid">
+            <div><strong>WASD</strong><span>движение с инерцией</span></div>
+            <div><strong>Shift</strong><span>разбежка</span></div>
+            <div><strong>Space</strong><span>рывок</span></div>
+            <div><strong>Mouse</strong><span>прицел и огонь</span></div>
+            <div><strong>1-4</strong><span>выбор стихий</span></div>
+            <div><strong>F</strong><span>смешать и кастовать</span></div>
+          </div>
+          <p class="brief">
+            Комнаты блокируются до зачистки. После стабильной комнаты можно взять оружие, прокачку и пройти в правую дверь.
+          </p>
+          <button id="startGameButton" class="primary">Начать ран</button>
+        </div>
+      </section>
+
       <section id="leaderboardScreen" class="screen">
         <div class="leaderboard">
           <div class="status-row">
@@ -141,6 +163,7 @@
         </div>
       </div>
     </main>
-    <script src="/game.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.90.0/phaser.min.js"></script>
+    <script src="/phaser-game.js"></script>
   </body>
 </html>

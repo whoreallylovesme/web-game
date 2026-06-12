@@ -71,9 +71,14 @@ button.selected {
   background-size: 16px 16px;
 }
 
-#game {
+#gameHost {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#gameHost canvas {
   width: 100%;
   height: 100%;
   image-rendering: pixelated;
@@ -107,6 +112,7 @@ button.selected {
 .incident,
 .leaderboard,
 .result-card,
+.tutorial,
 .editor-layout {
   position: relative;
   z-index: 1;
@@ -117,6 +123,7 @@ button.selected {
 .incident,
 .leaderboard,
 .result-card,
+.tutorial,
 .editor-main,
 .model-card {
   border: 1px solid var(--line);
@@ -232,7 +239,8 @@ h2 {
 .model-card,
 .incident,
 .leaderboard,
-.result-card {
+.result-card,
+.tutorial {
   padding: clamp(18px, 3vw, 28px);
 }
 
@@ -330,8 +338,37 @@ h2 {
 }
 
 .leaderboard,
-.result-card {
+.result-card,
+.tutorial {
   max-width: 720px;
+}
+
+.guide-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 26px 0;
+}
+
+.guide-grid div {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 14px;
+}
+
+.guide-grid strong,
+.guide-grid span {
+  display: block;
+}
+
+.guide-grid strong {
+  color: var(--green);
+  font-size: 22px;
+}
+
+.guide-grid span {
+  margin-top: 8px;
+  color: #d7e1f2;
 }
 
 #leaderboardList {
@@ -489,7 +526,8 @@ h2 {
   }
 
   .score-form,
-  .result-stats {
+  .result-stats,
+  .guide-grid {
     grid-template-columns: 1fr;
   }
 
