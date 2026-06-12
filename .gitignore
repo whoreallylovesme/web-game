@@ -6,4 +6,5 @@ backend/data/
 node_modules/
 dist/
 build/
+scores.tsv
 .env
