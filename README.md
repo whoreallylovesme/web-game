@@ -30,6 +30,7 @@ http://127.0.0.1:8787/
 
 - Main menu with AI-2027-style incident UI
 - Neural network editor that changes boss behavior
+- Generated hand-drawn gameplay background and actor atlas
 - Breach intro sequence
 - Top-down room combat
 - Robots, drones, turrets, manipulator arms
@@ -42,6 +43,7 @@ http://127.0.0.1:8787/
 ## Project Layout
 
 ```text
+frontend/assets/  Generated gameplay art assets
 frontend/  Phaser browser game client
 backend/   Python static server and leaderboard API
 docs/      Design docs

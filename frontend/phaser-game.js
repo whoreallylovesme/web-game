@@ -250,9 +250,19 @@ class RunScene extends Phaser.Scene {
     super("RunScene");
   }
 
+  preload() {
+    this.load.image("lab_room_v1", "/assets/lab-room-v1.png");
+    this.load.spritesheet("actors_v1", "/assets/actor-atlas-v1.png", {
+      frameWidth: 512,
+      frameHeight: 512,
+    });
+  }
+
   create() {
     sceneRef = this;
     createTextures(this);
+    this.useArtBackground = this.textures.exists("lab_room_v1");
+    this.useActorAtlas = this.textures.exists("actors_v1");
 
     this.activeGameplay = false;
     this.roomSprites = [];
@@ -306,9 +316,20 @@ class RunScene extends Phaser.Scene {
     this.playerBullets = this.physics.add.group();
     this.enemyBullets = this.physics.add.group();
 
-    this.player = this.physics.add.sprite(ROOM.x + 90, ROOM.y + ROOM.h / 2, "player_idle");
+    this.playerBaseScale = this.useActorAtlas ? 0.17 : 1;
+    this.player = this.physics.add.sprite(
+      ROOM.x + 90,
+      ROOM.y + ROOM.h / 2,
+      this.useActorAtlas ? "actors_v1" : "player_idle",
+      this.useActorAtlas ? 0 : undefined,
+    );
     this.player.setDepth(35).setCollideWorldBounds(false).setVisible(false);
-    this.player.body.setSize(28, 34).setOffset(14, 26);
+    if (this.useActorAtlas) {
+      this.player.setScale(this.playerBaseScale);
+      this.player.body.setSize(190, 220).setOffset(154, 210);
+    } else {
+      this.player.body.setSize(28, 34).setOffset(14, 26);
+    }
     this.player.body.setDrag(1180, 1180).setMaxVelocity(250, 250);
 
     this.physics.add.collider(this.player, this.walls);
@@ -367,11 +388,16 @@ class RunScene extends Phaser.Scene {
     this.clearRoomObjects();
     this.player.enableBody(true, ROOM.x + 92, ROOM.y + ROOM.h / 2, true, true);
     this.player.setVelocity(0, 0);
-    this.player.setTexture("player_idle").setVisible(true).setScale(1).clearTint();
+    if (this.useActorAtlas) {
+      this.player.setTexture("actors_v1", 0).setVisible(true).setScale(this.playerBaseScale).clearTint();
+      this.weaponSprite.setVisible(false);
+    } else {
+      this.player.setTexture("player_idle").setVisible(true).setScale(1).clearTint();
+      this.weaponSprite.setVisible(true).setTexture("weapon_pistol").setScale(1);
+    }
     this.playerShadow.setVisible(true).setScale(1.05, 0.72);
     this.playerMarker.setVisible(true).setAlpha(1);
     this.playerMarkerUntil = this.time.now + 4500;
-    this.weaponSprite.setVisible(true).setTexture("weapon_pistol").setScale(1);
     this.createRoom();
     updateHud(this);
   }
@@ -448,6 +474,24 @@ class RunScene extends Phaser.Scene {
   }
 
   createRoomFloor(seed, menuMode) {
+    if (this.useArtBackground) {
+      const bg = this.add.image(WORLD_W / 2, WORLD_H / 2, "lab_room_v1")
+        .setDepth(0)
+        .setDisplaySize(WORLD_W, WORLD_H);
+      this.roomSprites.push(bg);
+
+      const readableCenter = this.add.rectangle(
+        ROOM.x + ROOM.w / 2,
+        ROOM.y + ROOM.h / 2 + 8,
+        ROOM.w * 0.7,
+        ROOM.h * 0.58,
+        0x111827,
+        menuMode ? 0.08 : 0.04,
+      ).setDepth(1);
+      this.roomSprites.push(readableCenter);
+      return;
+    }
+
     const rand = seeded(seed);
     const tileKeys = ["tile_a", "tile_b", "tile_c", "tile_d"];
     for (let x = ROOM.x; x < ROOM.x + ROOM.w; x += 64) {
@@ -469,12 +513,24 @@ class RunScene extends Phaser.Scene {
 
   createWalls() {
     const wallColor = 0x252d3d;
-    this.addWall(ROOM.x + ROOM.w / 2, ROOM.y - 14, ROOM.w + 52, 36, wallColor, 0.98);
-    this.addWall(ROOM.x + ROOM.w / 2, ROOM.y + ROOM.h + 14, ROOM.w + 52, 36, wallColor, 0.98);
-    this.addWall(ROOM.x - 14, ROOM.y + ROOM.h / 2, 36, ROOM.h + 54, wallColor, 0.98);
-    this.addWall(ROOM.x + ROOM.w + 14, ROOM.y + ROOM.h / 2 - 122, 36, 184, wallColor, 0.98);
-    this.addWall(ROOM.x + ROOM.w + 14, ROOM.y + ROOM.h / 2 + 122, 36, 184, wallColor, 0.98);
+    const wallAlpha = this.useArtBackground ? 0 : 0.98;
+    this.addWall(ROOM.x + ROOM.w / 2, ROOM.y - 14, ROOM.w + 52, 36, wallColor, wallAlpha);
+    this.addWall(ROOM.x + ROOM.w / 2, ROOM.y + ROOM.h + 14, ROOM.w + 52, 36, wallColor, wallAlpha);
+    this.addWall(ROOM.x - 14, ROOM.y + ROOM.h / 2, 36, ROOM.h + 54, wallColor, wallAlpha);
+    this.addWall(ROOM.x + ROOM.w + 14, ROOM.y + ROOM.h / 2 - 122, 36, 184, wallColor, wallAlpha);
+    this.addWall(ROOM.x + ROOM.w + 14, ROOM.y + ROOM.h / 2 + 122, 36, 184, wallColor, wallAlpha);
     this.rightDoorBlocker = this.addWall(ROOM.x + ROOM.w + 14, ROOM.y + ROOM.h / 2, 34, 112, 0x111827, 0);
+
+    if (this.useArtBackground) {
+      this.leftDoorSprite = null;
+      this.rightDoorSprite = null;
+      this.exitArrow = this.add.image(ROOM.x + ROOM.w - 46, ROOM.y + ROOM.h / 2, "exit_arrow_open")
+        .setDepth(90)
+        .setAlpha(0)
+        .setScale(1.12);
+      this.decorSprites.push(this.exitArrow);
+      return;
+    }
 
     this.leftDoorSprite = this.add.image(ROOM.x - 10, ROOM.y + ROOM.h / 2, "door_entry").setDepth(26);
     this.rightDoorSprite = this.add.image(ROOM.x + ROOM.w + 14, ROOM.y + ROOM.h / 2, "door_locked").setDepth(28);
@@ -500,6 +556,10 @@ class RunScene extends Phaser.Scene {
   }
 
   createDecorations(seed) {
+    if (this.useArtBackground) {
+      return;
+    }
+
     const rand = seeded(seed);
     this.addCables(rand);
 
@@ -598,19 +658,26 @@ class RunScene extends Phaser.Scene {
   }
 
   updateWalkAnimation(dt, moving, running) {
+    const base = this.playerBaseScale || 1;
     if (!moving) {
-      this.player.setTexture("player_idle");
-      this.player.setScale(1, 1);
+      if (!this.useActorAtlas) this.player.setTexture("player_idle");
+      this.player.setScale(base, base);
       return;
     }
     this.walkClock += dt * (running ? 14 : 10);
     const frame = Math.floor(this.walkClock) % 6;
     const bob = Math.sin(this.walkClock * Math.PI * 2) * (running ? 0.045 : 0.03);
-    this.player.setTexture(`player_walk_${frame}`);
-    this.player.setScale(1 + bob, 1 - bob * 0.65);
+    if (!this.useActorAtlas) this.player.setTexture(`player_walk_${frame}`);
+    this.player.setScale(base * (1 + bob), base * (1 - bob * 0.65));
   }
 
   updateWeaponSprite() {
+    if (this.useActorAtlas) {
+      const angle = this.pointerAngle();
+      this.player.setFlipX(Math.cos(angle) < 0);
+      this.weaponSprite.setVisible(false);
+      return;
+    }
     const angle = this.pointerAngle();
     const weapon = weapons[this.playerStats.weapon];
     this.weaponSprite.setTexture(weapon.texture);
@@ -836,11 +903,22 @@ class RunScene extends Phaser.Scene {
   spawnEnemy(type, atX, atY) {
     const point = atX === undefined ? this.findSpawnPoint() : { x: atX, y: atY };
     const texture = `enemy_${type}`;
+    const frame = { robot: 1, drone: 2, turret: 3, arm: 4 }[type] ?? 1;
     const shadow = this.add.image(point.x, point.y + 22, "soft_shadow")
       .setDepth(55 + point.y / 10)
       .setAlpha(type === "drone" ? 0.28 : 0.42)
       .setScale(type === "arm" ? 1.12 : type === "turret" ? 1.0 : 0.84, type === "drone" ? 0.42 : 0.58);
-    const enemy = this.physics.add.sprite(point.x, point.y, texture).setDepth(14);
+    const enemy = this.physics.add.sprite(
+      point.x,
+      point.y,
+      this.useActorAtlas ? "actors_v1" : texture,
+      this.useActorAtlas ? frame : undefined,
+    ).setDepth(14);
+    if (this.useActorAtlas) {
+      const scale = type === "drone" ? 0.14 : type === "arm" ? 0.15 : type === "turret" ? 0.15 : 0.16;
+      enemy.setScale(scale);
+      enemy.setData("baseScale", scale);
+    }
     const hp = type === "arm" ? 88 + run.room * 10 : type === "turret" ? 72 + run.room * 10 : 42 + run.room * 8;
     enemy.setData({
       type,
@@ -854,10 +932,17 @@ class RunScene extends Phaser.Scene {
       phase: Math.random() * Math.PI * 2,
     });
     enemy.body.setDrag(650, 650);
-    if (type === "drone") enemy.body.setSize(34, 30).setOffset(10, 12);
-    if (type === "robot") enemy.body.setSize(32, 34).setOffset(12, 18);
-    if (type === "turret") enemy.body.setSize(40, 38).setOffset(10, 16);
-    if (type === "arm") enemy.body.setSize(42, 32).setOffset(18, 16);
+    if (this.useActorAtlas) {
+      if (type === "drone") enemy.body.setSize(210, 180).setOffset(150, 170);
+      if (type === "robot") enemy.body.setSize(190, 220).setOffset(160, 210);
+      if (type === "turret") enemy.body.setSize(230, 190).setOffset(120, 220);
+      if (type === "arm") enemy.body.setSize(240, 190).setOffset(140, 210);
+    } else {
+      if (type === "drone") enemy.body.setSize(34, 30).setOffset(10, 12);
+      if (type === "robot") enemy.body.setSize(32, 34).setOffset(12, 18);
+      if (type === "turret") enemy.body.setSize(40, 38).setOffset(10, 16);
+      if (type === "arm") enemy.body.setSize(42, 32).setOffset(18, 16);
+    }
     this.enemies.add(enemy);
     return enemy;
   }
@@ -966,19 +1051,31 @@ class RunScene extends Phaser.Scene {
     const shadow = this.add.image(ROOM.x + ROOM.w * 0.68, ROOM.y + ROOM.h / 2 + 42, "boss_shadow")
       .setDepth(58)
       .setAlpha(0.48);
-    const boss = this.physics.add.sprite(ROOM.x + ROOM.w * 0.68, ROOM.y + ROOM.h / 2, "boss_core").setDepth(14);
+    const boss = this.physics.add.sprite(
+      ROOM.x + ROOM.w * 0.68,
+      ROOM.y + ROOM.h / 2,
+      this.useActorAtlas ? "actors_v1" : "boss_core",
+      this.useActorAtlas ? 5 : undefined,
+    ).setDepth(14);
+    const baseScale = this.useActorAtlas ? 0.29 : 1;
+    boss.setScale(baseScale);
     const hp = 680 + forecast.risk * 5;
     boss.setData({
       hp,
       maxHp: hp,
       shadow,
+      baseScale,
       phase: 1,
       traits: forecast.traits,
       cooldownAt: this.time.now + 900,
       summonAt: this.time.now + 3000,
       dashAt: this.time.now + 2400,
     });
-    boss.body.setSize(76, 76).setOffset(18, 22);
+    if (this.useActorAtlas) {
+      boss.body.setSize(330, 330).setOffset(90, 100);
+    } else {
+      boss.body.setSize(76, 76).setOffset(18, 22);
+    }
     boss.body.setDrag(900, 900);
     this.boss = boss;
     this.bossGroup.add(boss);
@@ -994,7 +1091,7 @@ class RunScene extends Phaser.Scene {
     const phase = hp < maxHp * 0.34 ? 3 : hp < maxHp * 0.67 ? 2 : 1;
     boss.setData("phase", phase);
     boss.setRotation(Math.sin(time / 320) * 0.05 * phase);
-    boss.setScale(1 + Math.sin(time / 210) * 0.025);
+    boss.setScale((boss.getData("baseScale") || 1) * (1 + Math.sin(time / 210) * 0.025));
 
     const traits = boss.getData("traits") || [];
     const angle = Phaser.Math.Angle.Between(boss.x, boss.y, this.player.x, this.player.y);
@@ -1242,8 +1339,10 @@ class RunScene extends Phaser.Scene {
     this.rightDoorBlocker?.destroy();
     this.rightDoorSprite?.setTexture("door_open").setScale(1.08);
     this.exitArrow?.setTexture("exit_arrow_open").setAlpha(1);
+    const targets = [this.rightDoorSprite, this.exitArrow].filter(Boolean);
+    if (targets.length === 0) return;
     this.tweens.add({
-      targets: [this.rightDoorSprite, this.exitArrow],
+      targets,
       alpha: { from: 0.72, to: 1 },
       duration: 260,
       yoyo: true,
