@@ -240,6 +240,11 @@ docs/     design docs
   Подходит как источник 16x16 shooter/roguelike/pixel элементов, оружия, UI-заглушек.  
   Лицензия: Creative Commons CC0.
 
+- Top-down Shooter by Kenney  
+  URL: https://kenney.nl/assets/top-down-shooter  
+  Подходит для раннего прототипа top-down боя, оружия, окружения и humanoid/zombie-like спрайтов.  
+  Лицензия: Creative Commons CC0.
+
 - 16x16 Dungeon Tileset by 0x72  
   URL: https://0x72.itch.io/16x16-dungeon-tileset  
   Подходит для раннего прототипа комнат и тайлов.  
