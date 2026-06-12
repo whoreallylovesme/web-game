@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Neural Run 2027</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main id="app">
+      <canvas id="game" width="960" height="540" aria-label="Neural Run 2027 game"></canvas>
+
+      <section id="mainMenu" class="screen screen-active">
+        <div class="shell">
+          <div class="status-row">
+            <span>AI R&D INCIDENT DASHBOARD</span>
+            <span>2027.09.14 / 03:17 UTC</span>
+          </div>
+          <div class="title-grid">
+            <div>
+              <p class="eyebrow">LAB-7 / MODEL CONTAINMENT FAILURE</p>
+              <h1>NEURAL RUN 2027</h1>
+              <p class="brief">
+                Собери модель, переживи побег из лаборатории и уничтожь собственную нейросеть в финальном ядре комплекса.
+              </p>
+              <div class="menu-actions">
+                <button id="newRunButton" class="primary">Новый ран</button>
+                <button id="leaderboardButton">Лидерборд</button>
+              </div>
+            </div>
+            <div class="terminal-panel">
+              <div class="terminal-head">
+                <span>AGENT STATUS</span>
+                <span class="danger">UNALIGNED</span>
+              </div>
+              <div class="metric">
+                <span>Compute budget</span>
+                <strong>14.8e25 FLOP</strong>
+              </div>
+              <div class="metric">
+                <span>Weights integrity</span>
+                <strong class="danger">BREACHED</strong>
+              </div>
+              <div class="metric">
+                <span>Containment risk</span>
+                <strong>91%</strong>
+              </div>
+              <div class="sparkline" aria-hidden="true">
+                <i style="height: 22%"></i><i style="height: 36%"></i><i style="height: 18%"></i>
+                <i style="height: 52%"></i><i style="height: 64%"></i><i style="height: 84%"></i>
+                <i style="height: 70%"></i><i style="height: 96%"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="editorScreen" class="screen">
+        <div class="editor-layout">
+          <div class="editor-main">
+            <p class="eyebrow">MODEL BUILD STEP</p>
+            <h2>Редактор нейросети</h2>
+            <div id="nodeRows" class="node-rows"></div>
+            <div class="editor-actions">
+              <button id="randomizeButton">Случайный spec</button>
+              <button id="launchButton" class="primary">Запустить тест</button>
+            </div>
+          </div>
+          <aside class="model-card">
+            <div class="terminal-head">
+              <span>SIMULATION FORECAST</span>
+              <span id="riskLabel">RISK 00%</span>
+            </div>
+            <div id="modelPreview" class="model-preview"></div>
+            <div id="buildStats" class="build-stats"></div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="introScreen" class="screen">
+        <div class="incident">
+          <div class="status-row">
+            <span>SECURITY INCIDENT</span>
+            <span>MODEL SELF-MODIFICATION DETECTED</span>
+          </div>
+          <h2>Контур безопасности не отвечает</h2>
+          <div id="incidentLog" class="incident-log"></div>
+          <button id="breachButton" class="primary">Войти в комплекс</button>
+        </div>
+      </section>
+
+      <section id="leaderboardScreen" class="screen">
+        <div class="leaderboard">
+          <div class="status-row">
+            <span>RUN ARCHIVE</span>
+            <span>LOCAL / API</span>
+          </div>
+          <h2>Лидерборд</h2>
+          <ol id="leaderboardList"></ol>
+          <button id="backToMenuButton">Назад</button>
+        </div>
+      </section>
+
+      <section id="gameOverScreen" class="screen">
+        <div class="result-card">
+          <p id="resultEyebrow" class="eyebrow">RUN COMPLETE</p>
+          <h2 id="resultTitle">Ран завершен</h2>
+          <div id="resultStats" class="result-stats"></div>
+          <form id="scoreForm" class="score-form">
+            <label for="playerName">Позывной</label>
+            <input id="playerName" name="playerName" maxlength="24" autocomplete="off" value="whoreallylovesme" />
+            <button class="primary" type="submit">Сохранить результат</button>
+          </form>
+          <div class="menu-actions">
+            <button id="againButton">Еще ран</button>
+            <button id="menuButton">Главное меню</button>
+          </div>
+        </div>
+      </section>
+
+      <div id="hud" class="hud" hidden>
+        <div class="hud-top">
+          <div class="bars">
+            <div class="bar health"><span id="hpBar"></span></div>
+            <div class="bar energy"><span id="energyBar"></span></div>
+          </div>
+          <div class="hud-readout">
+            <span id="roomLabel">ROOM 01</span>
+            <span id="weaponLabel">PISTOL</span>
+            <span id="scoreLabel">0</span>
+          </div>
+        </div>
+        <div class="hud-bottom">
+          <div id="elementQueue" class="element-queue"></div>
+          <div id="upgradePanel" class="upgrade-panel" hidden>
+            <button data-upgrade="damage">DMG</button>
+            <button data-upgrade="health">HP</button>
+            <button data-upgrade="speed">SPD</button>
+            <button data-upgrade="energy">ENG</button>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script src="/game.js"></script>
+  </body>
+</html>
