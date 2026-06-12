@@ -269,7 +269,9 @@ class RunScene extends Phaser.Scene {
 
     this.floorLayer = this.add.layer().setDepth(0);
     this.decoLayer = this.add.layer().setDepth(2);
-    this.weaponSprite = this.add.image(0, 0, "weapon_pistol").setDepth(16).setOrigin(0.08, 0.5);
+    this.playerShadow = this.add.image(0, 0, "soft_shadow").setDepth(11).setVisible(false);
+    this.playerMarker = this.add.image(0, 0, "player_marker").setDepth(120).setVisible(false);
+    this.weaponSprite = this.add.image(0, 0, "weapon_pistol").setDepth(36).setOrigin(0.08, 0.5).setVisible(false);
     this.messageText = this.add.text(WORLD_W / 2, 92, "", {
       fontFamily: "monospace",
       fontSize: "20px",
@@ -305,8 +307,8 @@ class RunScene extends Phaser.Scene {
     this.enemyBullets = this.physics.add.group();
 
     this.player = this.physics.add.sprite(ROOM.x + 90, ROOM.y + ROOM.h / 2, "player_idle");
-    this.player.setDepth(15).setCollideWorldBounds(false);
-    this.player.body.setSize(18, 22).setOffset(5, 6);
+    this.player.setDepth(35).setCollideWorldBounds(false).setVisible(false);
+    this.player.body.setSize(28, 34).setOffset(14, 26);
     this.player.body.setDrag(1180, 1180).setMaxVelocity(250, 250);
 
     this.physics.add.collider(this.player, this.walls);
@@ -365,8 +367,11 @@ class RunScene extends Phaser.Scene {
     this.clearRoomObjects();
     this.player.enableBody(true, ROOM.x + 92, ROOM.y + ROOM.h / 2, true, true);
     this.player.setVelocity(0, 0);
-    this.player.setTexture("player_idle").clearTint();
-    this.weaponSprite.setVisible(true).setTexture("weapon_pistol");
+    this.player.setTexture("player_idle").setVisible(true).setScale(1).clearTint();
+    this.playerShadow.setVisible(true).setScale(1.05, 0.72);
+    this.playerMarker.setVisible(true).setAlpha(1);
+    this.playerMarkerUntil = this.time.now + 4500;
+    this.weaponSprite.setVisible(true).setTexture("weapon_pistol").setScale(1);
     this.createRoom();
     updateHud(this);
   }
@@ -382,6 +387,7 @@ class RunScene extends Phaser.Scene {
     this.updatePickups();
     this.updateMessage(time);
     this.checkRoomState();
+    this.updateDepths(time);
 
     this.playerStats.energy = Math.min(this.playerStats.maxEnergy, this.playerStats.energy + dt * 16);
     updateHud(this);
@@ -392,6 +398,9 @@ class RunScene extends Phaser.Scene {
     this.createRoomFloor(12345, true);
     this.messageText.setVisible(false);
     this.weaponSprite.setVisible(false);
+    this.player.setVisible(false);
+    this.playerShadow.setVisible(false);
+    this.playerMarker.setVisible(false);
   }
 
   createRoom() {
@@ -418,6 +427,13 @@ class RunScene extends Phaser.Scene {
   }
 
   clearRoomObjects() {
+    this.enemies?.children?.each((enemy) => enemy.getData("shadow")?.destroy());
+    this.pickups?.children?.each((pickup) => pickup.getData("shadow")?.destroy());
+    this.boss?.getData?.("shadow")?.destroy();
+    this.bossHealthBack?.destroy();
+    this.bossHealthFill?.destroy();
+    this.bossHealthBack = null;
+    this.bossHealthFill = null;
     this.roomSprites.forEach((sprite) => sprite.destroy());
     this.decorSprites.forEach((sprite) => sprite.destroy());
     this.roomSprites = [];
@@ -434,37 +450,51 @@ class RunScene extends Phaser.Scene {
   createRoomFloor(seed, menuMode) {
     const rand = seeded(seed);
     const tileKeys = ["tile_a", "tile_b", "tile_c", "tile_d"];
-    for (let x = ROOM.x; x < ROOM.x + ROOM.w; x += 32) {
-      for (let y = ROOM.y; y < ROOM.y + ROOM.h; y += 32) {
+    for (let x = ROOM.x; x < ROOM.x + ROOM.w; x += 64) {
+      for (let y = ROOM.y; y < ROOM.y + ROOM.h; y += 64) {
         const key = tileKeys[Math.floor(rand() * tileKeys.length)];
-        const tile = this.add.image(x + 16, y + 16, key).setDepth(0);
+        const tile = this.add.image(x + 32, y + 32, key).setDepth(0);
         this.floorLayer.add(tile);
         this.roomSprites.push(tile);
       }
     }
 
-    const glow = this.add.rectangle(ROOM.x + ROOM.w / 2, ROOM.y + ROOM.h / 2, ROOM.w, ROOM.h, menuMode ? 0x113344 : 0x101827, 0.18)
+    const glow = this.add.rectangle(ROOM.x + ROOM.w / 2, ROOM.y + ROOM.h / 2, ROOM.w, ROOM.h, menuMode ? 0x113344 : 0x182338, 0.22)
       .setDepth(1);
     this.roomSprites.push(glow);
+
+    const vignette = this.add.image(ROOM.x + ROOM.w / 2, ROOM.y + ROOM.h / 2, "room_vignette").setDepth(4).setAlpha(menuMode ? 0.38 : 0.26);
+    this.roomSprites.push(vignette);
   }
 
   createWalls() {
-    const wallColor = 0x293442;
-    this.addWall(ROOM.x + ROOM.w / 2, ROOM.y - 8, ROOM.w + 34, 22, wallColor);
-    this.addWall(ROOM.x + ROOM.w / 2, ROOM.y + ROOM.h + 8, ROOM.w + 34, 22, wallColor);
-    this.addWall(ROOM.x - 8, ROOM.y + ROOM.h / 2, 22, ROOM.h + 34, wallColor);
-    this.addWall(ROOM.x + ROOM.w + 8, ROOM.y + ROOM.h / 2 - 104, 22, 208, wallColor);
-    this.addWall(ROOM.x + ROOM.w + 8, ROOM.y + ROOM.h / 2 + 104, 22, 208, wallColor);
-    this.rightDoorBlocker = this.addWall(ROOM.x + ROOM.w + 8, ROOM.y + ROOM.h / 2, 22, 78, 0x4b5563);
+    const wallColor = 0x252d3d;
+    this.addWall(ROOM.x + ROOM.w / 2, ROOM.y - 14, ROOM.w + 52, 36, wallColor, 0.98);
+    this.addWall(ROOM.x + ROOM.w / 2, ROOM.y + ROOM.h + 14, ROOM.w + 52, 36, wallColor, 0.98);
+    this.addWall(ROOM.x - 14, ROOM.y + ROOM.h / 2, 36, ROOM.h + 54, wallColor, 0.98);
+    this.addWall(ROOM.x + ROOM.w + 14, ROOM.y + ROOM.h / 2 - 122, 36, 184, wallColor, 0.98);
+    this.addWall(ROOM.x + ROOM.w + 14, ROOM.y + ROOM.h / 2 + 122, 36, 184, wallColor, 0.98);
+    this.rightDoorBlocker = this.addWall(ROOM.x + ROOM.w + 14, ROOM.y + ROOM.h / 2, 34, 112, 0x111827, 0);
 
-    const doorLight = this.add.rectangle(ROOM.x + ROOM.w + 1, ROOM.y + ROOM.h / 2, 8, 70, 0xff4d6d, 0.72).setDepth(6);
-    this.doorLight = doorLight;
-    this.decorSprites.push(doorLight);
+    this.leftDoorSprite = this.add.image(ROOM.x - 10, ROOM.y + ROOM.h / 2, "door_entry").setDepth(26);
+    this.rightDoorSprite = this.add.image(ROOM.x + ROOM.w + 14, ROOM.y + ROOM.h / 2, "door_locked").setDepth(28);
+    this.exitArrow = this.add.image(ROOM.x + ROOM.w - 44, ROOM.y + ROOM.h / 2, "exit_arrow").setDepth(30).setAlpha(0.35);
+    this.decorSprites.push(this.leftDoorSprite, this.rightDoorSprite, this.exitArrow);
+
+    this.tweens.add({
+      targets: this.rightDoorSprite,
+      scaleX: 1.04,
+      scaleY: 1.04,
+      duration: 620,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    });
   }
 
-  addWall(x, y, w, h, color) {
+  addWall(x, y, w, h, color, alpha = 1) {
     const sprite = this.walls.create(x, y, "solid");
-    sprite.setDisplaySize(w, h).setTint(color).refreshBody().setDepth(5);
+    sprite.setDisplaySize(w, h).setTint(color).setAlpha(alpha).refreshBody().setDepth(24);
     this.roomSprites.push(sprite);
     return sprite;
   }
@@ -474,22 +504,23 @@ class RunScene extends Phaser.Scene {
     this.addCables(rand);
 
     const obstacleSpots = [
-      [ROOM.x + 170, ROOM.y + 105, "server_rack"],
-      [ROOM.x + 334, ROOM.y + 322, "glass_tank"],
-      [ROOM.x + 502, ROOM.y + 126, "lab_table"],
-      [ROOM.x + 690, ROOM.y + 330, "server_rack"],
+      [ROOM.x + 174, ROOM.y + 118, "server_rack"],
+      [ROOM.x + 336, ROOM.y + 324, "glass_tank"],
+      [ROOM.x + 512, ROOM.y + 132, "lab_table"],
+      [ROOM.x + 696, ROOM.y + 330, "reactor"],
     ];
 
     obstacleSpots.forEach(([x, y, key], index) => {
       if (run.room % 2 === index % 2 || index < 2) {
+        const shadow = this.add.image(x + 8, y + 28, "object_shadow").setDepth(35 + y / 10);
         const obstacle = this.obstacles.create(x + rand() * 24 - 12, y + rand() * 24 - 12, key);
-        obstacle.refreshBody().setDepth(8);
-        this.decorSprites.push(obstacle);
+        obstacle.refreshBody().setDepth(42 + y / 10);
+        this.decorSprites.push(shadow, obstacle);
       }
     });
 
-    for (let i = 0; i < 18; i += 1) {
-      const key = rand() > 0.62 ? "floor_rune" : rand() > 0.45 ? "warning_panel" : "cable_junction";
+    for (let i = 0; i < 24; i += 1) {
+      const key = rand() > 0.72 ? "floor_rune" : rand() > 0.48 ? "warning_panel" : "cable_junction";
       const x = ROOM.x + 64 + rand() * (ROOM.w - 128);
       const y = ROOM.y + 48 + rand() * (ROOM.h - 96);
       const deco = this.add.image(x, y, key).setDepth(key === "floor_rune" ? 1 : 3);
@@ -499,14 +530,11 @@ class RunScene extends Phaser.Scene {
     }
 
     for (let i = 0; i < 10; i += 1) {
-      const light = this.add.rectangle(
+      const light = this.add.image(
         ROOM.x + 24 + i * 86,
         ROOM.y + (i % 2 === 0 ? 8 : ROOM.h - 8),
-        34,
-        5,
-        i % 3 === 0 ? 0xff4d6d : 0x34d5ff,
-        0.78,
-      ).setDepth(7);
+        i % 3 === 0 ? "wall_light_red" : "wall_light_blue",
+      ).setDepth(27).setAlpha(0.88);
       this.decorSprites.push(light);
     }
   }
@@ -572,11 +600,14 @@ class RunScene extends Phaser.Scene {
   updateWalkAnimation(dt, moving, running) {
     if (!moving) {
       this.player.setTexture("player_idle");
+      this.player.setScale(1, 1);
       return;
     }
     this.walkClock += dt * (running ? 14 : 10);
-    const frame = Math.floor(this.walkClock) % 4;
+    const frame = Math.floor(this.walkClock) % 6;
+    const bob = Math.sin(this.walkClock * Math.PI * 2) * (running ? 0.045 : 0.03);
     this.player.setTexture(`player_walk_${frame}`);
+    this.player.setScale(1 + bob, 1 - bob * 0.65);
   }
 
   updateWeaponSprite() {
@@ -584,11 +615,45 @@ class RunScene extends Phaser.Scene {
     const weapon = weapons[this.playerStats.weapon];
     this.weaponSprite.setTexture(weapon.texture);
     this.weaponSprite.setPosition(
-      this.player.x + Math.cos(angle) * 13,
-      this.player.y + Math.sin(angle) * 13,
+      this.player.x + Math.cos(angle) * 23,
+      this.player.y + Math.sin(angle) * 18 + 4,
     );
     this.weaponSprite.setRotation(angle);
     this.weaponSprite.setFlipY(Math.cos(angle) < 0);
+    this.player.setFlipX(Math.cos(angle) < 0);
+  }
+
+  updateDepths(time) {
+    if (this.playerShadow.visible) {
+      this.playerShadow.setPosition(this.player.x, this.player.y + 24);
+      this.playerShadow.setAlpha(0.42 + Math.sin(time / 180) * 0.035);
+    }
+    if (this.playerMarker.visible) {
+      this.playerMarker.setPosition(this.player.x, this.player.y - 58 + Math.sin(time / 140) * 4);
+      this.playerMarker.setAlpha(time < this.playerMarkerUntil ? 0.86 : Math.max(0, this.playerMarker.alpha - 0.04));
+      if (this.playerMarker.alpha <= 0.03) this.playerMarker.setVisible(false);
+    }
+    this.player.setDepth(70 + this.player.y / 10);
+    this.weaponSprite.setDepth(this.player.depth + 1);
+
+    this.enemies.children.each((enemy) => {
+      if (!enemy.active) return;
+      const shadow = enemy.getData("shadow");
+      if (shadow) {
+        shadow.setPosition(enemy.x, enemy.y + enemy.getData("shadowOffset"));
+        shadow.setDepth(55 + enemy.y / 10);
+      }
+      enemy.setDepth(60 + enemy.y / 10);
+    });
+
+    if (this.boss?.active) {
+      const shadow = this.boss.getData("shadow");
+      if (shadow) {
+        shadow.setPosition(this.boss.x, this.boss.y + 42);
+        shadow.setDepth(55 + this.boss.y / 10);
+      }
+      this.boss.setDepth(64 + this.boss.y / 10);
+    }
   }
 
   pointerAngle() {
@@ -712,6 +777,8 @@ class RunScene extends Phaser.Scene {
   onBulletEnemy(bullet, enemy) {
     const damage = bullet.getData("damage") || 0;
     enemy.setData("hp", enemy.getData("hp") - damage);
+    enemy.setTint(0xffffff);
+    this.time.delayedCall(80, () => enemy.active && enemy.clearTint());
     const element = bullet.getData("element");
     if (element === "ice") enemy.setData("stunUntil", this.time.now + 800);
     if (element === "fire") enemy.setData("burnUntil", this.time.now + 1200);
@@ -722,6 +789,8 @@ class RunScene extends Phaser.Scene {
 
   onBulletBoss(bullet, boss) {
     boss.setData("hp", boss.getData("hp") - (bullet.getData("damage") || 0));
+    boss.setTint(0xffffff);
+    this.time.delayedCall(80, () => boss.active && boss.clearTint());
     this.emitBurst(bullet.x, bullet.y, bullet.getData("tint") || 0xffffff, 10);
     bullet.destroy();
     if (boss.getData("hp") <= 0) {
@@ -767,19 +836,28 @@ class RunScene extends Phaser.Scene {
   spawnEnemy(type, atX, atY) {
     const point = atX === undefined ? this.findSpawnPoint() : { x: atX, y: atY };
     const texture = `enemy_${type}`;
+    const shadow = this.add.image(point.x, point.y + 22, "soft_shadow")
+      .setDepth(55 + point.y / 10)
+      .setAlpha(type === "drone" ? 0.28 : 0.42)
+      .setScale(type === "arm" ? 1.12 : type === "turret" ? 1.0 : 0.84, type === "drone" ? 0.42 : 0.58);
     const enemy = this.physics.add.sprite(point.x, point.y, texture).setDepth(14);
     const hp = type === "arm" ? 88 + run.room * 10 : type === "turret" ? 72 + run.room * 10 : 42 + run.room * 8;
     enemy.setData({
       type,
       hp,
       maxHp: hp,
+      shadow,
+      shadowOffset: type === "drone" ? 28 : 24,
       cooldownAt: this.time.now + Phaser.Math.Between(400, 1400),
       stunUntil: 0,
       burnUntil: 0,
       phase: Math.random() * Math.PI * 2,
     });
     enemy.body.setDrag(650, 650);
-    enemy.body.setSize(type === "drone" ? 18 : 24, type === "drone" ? 18 : 24);
+    if (type === "drone") enemy.body.setSize(34, 30).setOffset(10, 12);
+    if (type === "robot") enemy.body.setSize(32, 34).setOffset(12, 18);
+    if (type === "turret") enemy.body.setSize(40, 38).setOffset(10, 16);
+    if (type === "arm") enemy.body.setSize(42, 32).setOffset(18, 16);
     this.enemies.add(enemy);
     return enemy;
   }
@@ -818,23 +896,26 @@ class RunScene extends Phaser.Scene {
 
       if (type === "robot") {
         this.physics.velocityFromRotation(angle, 120 + run.room * 5, enemy.body.velocity);
+        enemy.setFlipX(Math.cos(angle) < 0);
       } else if (type === "drone") {
         const orbit = angle + Math.sin(phase * 3.2) * 0.9;
         this.physics.velocityFromRotation(orbit, 170 + run.room * 4, enemy.body.velocity);
+        enemy.y += Math.sin(phase * 8) * 0.35;
         if (time > cooldownAt) {
           enemy.setData("cooldownAt", time + 1150);
           this.enemyShot(enemy, angle, 0xff4d6d);
         }
       } else if (type === "turret") {
         enemy.setVelocity(0, 0);
-        enemy.setRotation(angle);
+        enemy.setRotation(angle * 0.08);
         if (time > cooldownAt) {
           enemy.setData("cooldownAt", time + 980 + Math.random() * 300);
           this.enemyShot(enemy, angle, 0xff4d6d);
         }
       } else if (type === "arm") {
         this.physics.velocityFromRotation(angle + Math.sin(phase * 2) * 0.25, 58, enemy.body.velocity);
-        enemy.setRotation(angle);
+        enemy.setRotation(Math.sin(phase * 3) * 0.08);
+        enemy.setFlipX(Math.cos(angle) < 0);
         if (time > cooldownAt) {
           enemy.setData("cooldownAt", time + 1500);
           this.armStrike(enemy, angle);
@@ -870,31 +951,39 @@ class RunScene extends Phaser.Scene {
   killEnemy(enemy) {
     if (!enemy.active) return;
     const type = enemy.getData("type");
+    const shadow = enemy.getData("shadow");
     run.kills += 1;
     run.score += type === "turret" ? 95 : type === "arm" ? 130 : 65;
     if (run.kills % 5 === 0) this.playerStats.upgradePoints += 1;
     this.emitBurst(enemy.x, enemy.y, enemyTint(type), 22);
     if (Math.random() < 0.2) this.spawnPickup(enemy.x, enemy.y, Math.random() < 0.5 ? "health" : "energy");
+    shadow?.destroy();
     enemy.destroy();
   }
 
   createBoss() {
     const forecast = getBuildForecast();
+    const shadow = this.add.image(ROOM.x + ROOM.w * 0.68, ROOM.y + ROOM.h / 2 + 42, "boss_shadow")
+      .setDepth(58)
+      .setAlpha(0.48);
     const boss = this.physics.add.sprite(ROOM.x + ROOM.w * 0.68, ROOM.y + ROOM.h / 2, "boss_core").setDepth(14);
     const hp = 680 + forecast.risk * 5;
     boss.setData({
       hp,
       maxHp: hp,
+      shadow,
       phase: 1,
       traits: forecast.traits,
       cooldownAt: this.time.now + 900,
       summonAt: this.time.now + 3000,
       dashAt: this.time.now + 2400,
     });
-    boss.body.setSize(56, 56);
+    boss.body.setSize(76, 76).setOffset(18, 22);
     boss.body.setDrag(900, 900);
     this.boss = boss;
     this.bossGroup.add(boss);
+    this.bossHealthBack = this.add.rectangle(WORLD_W / 2, 34, 520, 18, 0x07080c, 0.72).setDepth(92);
+    this.bossHealthFill = this.add.rectangle(WORLD_W / 2 - 258, 34, 516, 12, 0xff4d6d, 0.95).setOrigin(0, 0.5).setDepth(93);
   }
 
   updateBoss(time) {
@@ -904,7 +993,8 @@ class RunScene extends Phaser.Scene {
     const maxHp = boss.getData("maxHp");
     const phase = hp < maxHp * 0.34 ? 3 : hp < maxHp * 0.67 ? 2 : 1;
     boss.setData("phase", phase);
-    boss.setRotation(boss.rotation + 0.014 * phase);
+    boss.setRotation(Math.sin(time / 320) * 0.05 * phase);
+    boss.setScale(1 + Math.sin(time / 210) * 0.025);
 
     const traits = boss.getData("traits") || [];
     const angle = Phaser.Math.Angle.Between(boss.x, boss.y, this.player.x, this.player.y);
@@ -927,6 +1017,9 @@ class RunScene extends Phaser.Scene {
 
     boss.x = clamp(boss.x, ROOM.x + 42, ROOM.x + ROOM.w - 42);
     boss.y = clamp(boss.y, ROOM.y + 42, ROOM.y + ROOM.h - 42);
+    if (this.bossHealthFill) {
+      this.bossHealthFill.width = 516 * clamp(hp / maxHp, 0, 1);
+    }
   }
 
   bossVolley(boss, angle, phase) {
@@ -1095,14 +1188,25 @@ class RunScene extends Phaser.Scene {
 
   spawnPickup(x, y, type) {
     const texture = type === "health" ? "pickup_health" : type === "energy" ? "pickup_energy" : `pickup_${type}`;
+    const shadow = this.add.image(x, y + 14, "pickup_shadow").setDepth(59).setAlpha(0.32);
     const pickup = this.physics.add.image(x, y, texture).setDepth(13);
     pickup.setData("type", type);
-    pickup.body.setCircle(12);
+    pickup.setData("shadow", shadow);
+    pickup.body.setCircle(14, 5, 5);
     this.pickups.add(pickup);
-    this.tweens.add({ targets: pickup, y: y - 5, duration: 520, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+    this.tweens.add({ targets: pickup, y: y - 7, duration: 520, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
   }
 
   updatePickups() {
+    this.pickups.children.each((pickup) => {
+      if (!pickup.active) return;
+      const shadow = pickup.getData("shadow");
+      if (shadow) {
+        shadow.setPosition(pickup.x, pickup.y + 16);
+        shadow.setDepth(58 + pickup.y / 10);
+      }
+      pickup.setDepth(60 + pickup.y / 10);
+    });
     if (this.roomClear && this.player.x > ROOM.x + ROOM.w - 18) this.nextRoom();
   }
 
@@ -1119,6 +1223,7 @@ class RunScene extends Phaser.Scene {
       this.playerStats.energy = Math.min(this.playerStats.maxEnergy, this.playerStats.energy + 46);
       this.showMessage("CAPACITOR", 1000);
     }
+    pickup.getData("shadow")?.destroy();
     pickup.destroy();
   }
 
@@ -1135,7 +1240,15 @@ class RunScene extends Phaser.Scene {
 
   openDoor() {
     this.rightDoorBlocker?.destroy();
-    this.doorLight?.setFillStyle(0x5dff9d, 0.85);
+    this.rightDoorSprite?.setTexture("door_open").setScale(1.08);
+    this.exitArrow?.setTexture("exit_arrow_open").setAlpha(1);
+    this.tweens.add({
+      targets: [this.rightDoorSprite, this.exitArrow],
+      alpha: { from: 0.72, to: 1 },
+      duration: 260,
+      yoyo: true,
+      repeat: 3,
+    });
   }
 
   spawnRoomRewards() {
@@ -1202,179 +1315,334 @@ class RunScene extends Phaser.Scene {
 function createTextures(scene) {
   makeTexture(scene, "solid", 4, 4, (g) => g.fillStyle(0xffffff).fillRect(0, 0, 4, 4));
   makeTexture(scene, "pixel", 4, 4, (g) => g.fillStyle(0xffffff).fillRect(0, 0, 4, 4));
-
-  makeTile(scene, "tile_a", 0x161e29, 0x243142, 0x1d2835);
-  makeTile(scene, "tile_b", 0x121923, 0x223040, 0x182230);
-  makeTile(scene, "tile_c", 0x19212d, 0x314055, 0x1f2a38);
-  makeTile(scene, "tile_d", 0x141b24, 0x263344, 0x1a2431);
-
-  makeTexture(scene, "server_rack", 44, 58, (g) => {
-    g.fillStyle(0x0b1118).fillRect(0, 0, 44, 58);
-    g.fillStyle(0x1f2a38).fillRect(4, 4, 36, 50);
-    for (let y = 8; y < 50; y += 10) {
-      g.fillStyle(0x34d5ff).fillRect(8, y, 5, 3);
-      g.fillStyle(0x5dff9d).fillRect(16, y, 5, 3);
-      g.fillStyle(0x64748b).fillRect(26, y, 10, 2);
-    }
+  makeTexture(scene, "soft_shadow", 96, 38, (g) => {
+    g.fillStyle(0x000000, 0.22).fillEllipse(48, 20, 88, 28);
+    g.fillStyle(0x000000, 0.16).fillEllipse(48, 20, 58, 18);
+  });
+  makeTexture(scene, "object_shadow", 120, 46, (g) => g.fillStyle(0x000000, 0.28).fillEllipse(60, 24, 110, 32));
+  makeTexture(scene, "pickup_shadow", 42, 18, (g) => g.fillStyle(0x000000, 0.22).fillEllipse(21, 9, 36, 12));
+  makeTexture(scene, "boss_shadow", 150, 60, (g) => g.fillStyle(0x000000, 0.32).fillEllipse(75, 32, 140, 42));
+  makeTexture(scene, "player_marker", 44, 34, (g) => {
+    g.fillStyle(0x000000, 0.34).fillTriangle(22, 34, 4, 6, 40, 6);
+    g.fillStyle(0x5dff9d).fillTriangle(22, 30, 8, 8, 36, 8);
+    g.fillStyle(0xf8fff9).fillTriangle(22, 24, 15, 12, 29, 12);
   });
 
-  makeTexture(scene, "glass_tank", 40, 62, (g) => {
-    g.fillStyle(0x0b1118).fillRect(0, 0, 40, 62);
-    g.fillStyle(0x12384a, 0.9).fillRect(6, 8, 28, 44);
-    g.fillStyle(0x79e7ff, 0.45).fillRect(10, 12, 20, 36);
-    g.fillStyle(0xa0ff8f).fillRect(18, 26, 5, 10);
-    g.fillStyle(0xe5e7eb).fillRect(8, 6, 24, 3).fillRect(8, 53, 24, 3);
+  makeTile(scene, "tile_a", 0x1c2635, 0x2f3e53, 0x263347);
+  makeTile(scene, "tile_b", 0x20293a, 0x37465d, 0x28364b);
+  makeTile(scene, "tile_c", 0x182334, 0x2e4058, 0x223249);
+  makeTile(scene, "tile_d", 0x22283a, 0x465169, 0x2a354a);
+  makeTexture(scene, "room_vignette", ROOM.w, ROOM.h, (g) => {
+    g.lineStyle(18, 0x05070d, 0.48).strokeRect(9, 9, ROOM.w - 18, ROOM.h - 18);
+    g.lineStyle(8, 0x34d5ff, 0.14).strokeRect(20, 20, ROOM.w - 40, ROOM.h - 40);
   });
 
-  makeTexture(scene, "lab_table", 58, 34, (g) => {
-    g.fillStyle(0x111827).fillRect(0, 0, 58, 34);
-    g.fillStyle(0x334155).fillRect(4, 4, 50, 24);
-    g.fillStyle(0xffd166).fillRect(10, 9, 12, 5);
-    g.fillStyle(0xb978ff).fillRect(30, 8, 14, 8);
-    g.fillStyle(0x94a3b8).fillRect(8, 28, 42, 3);
-  });
-
-  makeTexture(scene, "floor_rune", 34, 34, (g) => {
-    g.lineStyle(2, 0xb978ff, 0.8).strokeRect(5, 5, 24, 24);
-    g.lineStyle(1, 0x34d5ff, 0.8).strokeCircle(17, 17, 10);
-    g.fillStyle(0xb978ff, 0.7).fillRect(15, 15, 4, 4);
-  });
-
-  makeTexture(scene, "warning_panel", 32, 16, (g) => {
-    g.fillStyle(0x2a1b21).fillRect(0, 0, 32, 16);
-    g.fillStyle(0xff4d6d).fillRect(3, 4, 6, 8);
-    g.fillStyle(0xffd166).fillRect(13, 5, 15, 2).fillRect(13, 10, 10, 2);
-  });
-
-  makeTexture(scene, "cable_junction", 24, 24, (g) => {
-    g.fillStyle(0x0f172a).fillRect(4, 4, 16, 16);
-    g.fillStyle(0x34d5ff).fillRect(10, 2, 4, 20).fillRect(2, 10, 20, 4);
-  });
+  makeDoors(scene);
+  makeDecor(scene);
 
   makePlayerTextures(scene);
   makeWeapons(scene);
   makeEnemies(scene);
   makePickups(scene);
 
-  makeTexture(scene, "bullet_player", 10, 10, (g) => {
-    g.fillStyle(0xffffff).fillRect(2, 2, 6, 6);
-    g.fillStyle(0xffffff, 0.45).fillRect(0, 4, 10, 2);
+  makeTexture(scene, "bullet_player", 18, 18, (g) => {
+    g.fillStyle(0xffffff, 0.24).fillCircle(9, 9, 9);
+    g.fillStyle(0xffffff).fillCircle(9, 9, 5);
+    g.fillStyle(0xffd166).fillCircle(11, 7, 2);
   });
-  makeTexture(scene, "bullet_enemy", 12, 12, (g) => {
-    g.fillStyle(0xff4d6d).fillRect(2, 2, 8, 8);
-    g.fillStyle(0xffd166).fillRect(5, 5, 2, 2);
+  makeTexture(scene, "bullet_enemy", 20, 20, (g) => {
+    g.fillStyle(0x220711, 0.86).fillCircle(10, 10, 10);
+    g.fillStyle(0xff4d6d).fillCircle(10, 10, 7);
+    g.fillStyle(0xffc2cf).fillCircle(8, 7, 2);
   });
-  makeTexture(scene, "spell_orb", 16, 16, (g) => {
-    g.fillStyle(0xffffff, 0.32).fillRect(2, 2, 12, 12);
-    g.fillStyle(0xffffff).fillRect(5, 5, 6, 6);
+  makeTexture(scene, "spell_orb", 28, 28, (g) => {
+    g.fillStyle(0xffffff, 0.22).fillCircle(14, 14, 14);
+    g.fillStyle(0xffffff, 0.52).fillCircle(14, 14, 10);
+    g.fillStyle(0xffffff).fillCircle(14, 14, 5);
   });
-  makeTexture(scene, "mine", 24, 24, (g) => {
-    g.fillStyle(0x3a1515).fillRect(4, 4, 16, 16);
-    g.fillStyle(0xff6b35).fillRect(9, 0, 6, 24).fillRect(0, 9, 24, 6);
+  makeTexture(scene, "mine", 38, 38, (g) => {
+    g.lineStyle(5, 0x0b1020).strokeCircle(19, 19, 14);
+    g.fillStyle(0x3a1515).fillCircle(19, 19, 14);
+    g.fillStyle(0xff6b35).fillCircle(19, 19, 8);
+    g.fillStyle(0xffd166).fillCircle(19, 19, 3);
   });
-  makeTexture(scene, "arm_slash", 82, 22, (g) => {
-    g.fillStyle(0xb978ff, 0.62).fillRect(0, 7, 76, 8);
-    g.fillStyle(0xffffff, 0.85).fillRect(50, 5, 30, 12);
+  makeTexture(scene, "arm_slash", 112, 34, (g) => {
+    g.fillStyle(0xb978ff, 0.3).fillEllipse(56, 17, 108, 22);
+    g.fillStyle(0xe9d5ff, 0.78).fillEllipse(72, 17, 72, 16);
+    g.fillStyle(0xffffff, 0.9).fillEllipse(88, 17, 42, 10);
   });
 }
 
 function makeTile(scene, key, base, line, accent) {
-  makeTexture(scene, key, 32, 32, (g) => {
-    g.fillStyle(base).fillRect(0, 0, 32, 32);
-    g.fillStyle(line).fillRect(0, 0, 32, 1).fillRect(0, 0, 1, 32);
-    g.fillStyle(accent).fillRect(24, 4, 4, 4).fillRect(5, 24, 7, 2);
+  makeTexture(scene, key, 64, 64, (g) => {
+    g.fillStyle(base).fillRect(0, 0, 64, 64);
+    g.lineStyle(2, line, 0.75).strokeRect(1, 1, 62, 62);
+    g.lineStyle(1, 0xffffff, 0.08).strokeRect(8, 8, 48, 48);
+    g.fillStyle(accent, 0.88).fillRoundedRect(45, 9, 10, 10, 3);
+    g.fillStyle(0x34d5ff, 0.16).fillRoundedRect(10, 48, 18, 4, 2);
+    g.fillStyle(0x000000, 0.1).fillRect(2, 54, 60, 8);
+  });
+}
+
+function makeDoors(scene) {
+  makeTexture(scene, "door_entry", 72, 142, (g) => {
+    g.fillStyle(0x000000, 0.35).fillEllipse(36, 132, 58, 18);
+    g.lineStyle(8, 0x0b1020).strokeRoundedRect(8, 10, 56, 112, 14);
+    g.fillStyle(0x202a3a).fillRoundedRect(8, 10, 56, 112, 14);
+    g.lineStyle(4, 0x34d5ff, 0.58).strokeRoundedRect(17, 22, 38, 88, 9);
+    g.fillStyle(0x34d5ff, 0.2).fillRoundedRect(24, 32, 24, 68, 8);
+    g.fillStyle(0x94a3b8).fillRoundedRect(28, 13, 16, 8, 4);
+  });
+
+  makeTexture(scene, "door_locked", 96, 152, (g) => {
+    g.fillStyle(0x000000, 0.42).fillEllipse(48, 140, 76, 20);
+    g.lineStyle(9, 0x0b1020).strokeRoundedRect(12, 8, 72, 126, 18);
+    g.fillStyle(0x271822).fillRoundedRect(12, 8, 72, 126, 18);
+    g.lineStyle(5, 0xff4d6d, 0.9).strokeRoundedRect(23, 22, 50, 94, 12);
+    g.fillStyle(0xff4d6d, 0.17).fillRoundedRect(29, 30, 38, 78, 10);
+    g.fillStyle(0xff4d6d).fillRoundedRect(34, 63, 28, 12, 6);
+    g.fillStyle(0xffd166).fillCircle(48, 88, 6);
+    g.fillStyle(0xffffff, 0.35).fillRoundedRect(27, 28, 10, 76, 5);
+  });
+
+  makeTexture(scene, "door_open", 104, 160, (g) => {
+    g.fillStyle(0x000000, 0.38).fillEllipse(52, 148, 82, 22);
+    g.lineStyle(9, 0x0b1020).strokeRoundedRect(11, 8, 82, 136, 20);
+    g.fillStyle(0x17362d).fillRoundedRect(11, 8, 82, 136, 20);
+    g.fillStyle(0x5dff9d, 0.28).fillRoundedRect(24, 22, 56, 108, 14);
+    g.lineStyle(5, 0x5dff9d, 0.98).strokeRoundedRect(22, 20, 60, 112, 14);
+    g.fillStyle(0xf8fff9, 0.7).fillRoundedRect(36, 44, 34, 60, 12);
+    g.fillStyle(0x34d5ff).fillCircle(52, 28, 5).fillCircle(52, 124, 5);
+  });
+
+  makeTexture(scene, "exit_arrow", 68, 62, (g) => {
+    g.fillStyle(0x000000, 0.28).fillEllipse(34, 54, 52, 12);
+    g.lineStyle(6, 0x0b1020).strokeRoundedRect(8, 18, 33, 18, 8);
+    g.fillStyle(0xff4d6d).fillRoundedRect(8, 18, 33, 18, 8);
+    g.fillStyle(0xff4d6d).fillTriangle(38, 10, 62, 27, 38, 44);
+    g.lineStyle(3, 0xffc2cf).strokeTriangle(38, 10, 62, 27, 38, 44);
+  });
+
+  makeTexture(scene, "exit_arrow_open", 68, 62, (g) => {
+    g.fillStyle(0x000000, 0.26).fillEllipse(34, 54, 52, 12);
+    g.lineStyle(6, 0x0b1020).strokeRoundedRect(8, 18, 33, 18, 8);
+    g.fillStyle(0x5dff9d).fillRoundedRect(8, 18, 33, 18, 8);
+    g.fillStyle(0x5dff9d).fillTriangle(38, 10, 62, 27, 38, 44);
+    g.lineStyle(3, 0xf8fff9).strokeTriangle(38, 10, 62, 27, 38, 44);
+  });
+}
+
+function makeDecor(scene) {
+  makeTexture(scene, "wall_light_red", 48, 14, (g) => {
+    g.fillStyle(0x0b1020).fillRoundedRect(0, 0, 48, 14, 7);
+    g.fillStyle(0xff4d6d).fillRoundedRect(6, 4, 36, 6, 3);
+  });
+  makeTexture(scene, "wall_light_blue", 48, 14, (g) => {
+    g.fillStyle(0x0b1020).fillRoundedRect(0, 0, 48, 14, 7);
+    g.fillStyle(0x34d5ff).fillRoundedRect(6, 4, 36, 6, 3);
+  });
+  makeTexture(scene, "server_rack", 72, 96, (g) => {
+    g.fillStyle(0x000000, 0.22).fillEllipse(38, 88, 58, 14);
+    g.lineStyle(7, 0x0b1020).strokeRoundedRect(8, 4, 56, 82, 10);
+    g.fillStyle(0x1f2a38).fillRoundedRect(8, 4, 56, 82, 10);
+    for (let y = 15; y < 75; y += 14) {
+      g.fillStyle(0x0f172a).fillRoundedRect(17, y, 38, 8, 3);
+      g.fillStyle(0x34d5ff).fillCircle(22, y + 4, 3);
+      g.fillStyle(0x5dff9d).fillCircle(31, y + 4, 3);
+      g.fillStyle(0x94a3b8).fillRoundedRect(40, y + 2, 10, 4, 2);
+    }
+    g.fillStyle(0xffffff, 0.16).fillRoundedRect(15, 10, 7, 70, 4);
+  });
+  makeTexture(scene, "glass_tank", 68, 106, (g) => {
+    g.fillStyle(0x000000, 0.22).fillEllipse(34, 98, 58, 16);
+    g.lineStyle(7, 0x0b1020).strokeRoundedRect(9, 5, 50, 88, 18);
+    g.fillStyle(0x12384a).fillRoundedRect(9, 5, 50, 88, 18);
+    g.fillStyle(0x79e7ff, 0.34).fillRoundedRect(17, 16, 34, 62, 14);
+    g.fillStyle(0xa0ff8f).fillEllipse(34, 52, 12, 28);
+    g.lineStyle(3, 0xf8fafc, 0.34).strokeRoundedRect(22, 20, 22, 54, 10);
+    g.fillStyle(0xe5e7eb).fillRoundedRect(18, 7, 32, 7, 4).fillRoundedRect(18, 83, 32, 7, 4);
+  });
+  makeTexture(scene, "lab_table", 112, 62, (g) => {
+    g.fillStyle(0x000000, 0.24).fillEllipse(56, 55, 96, 14);
+    g.lineStyle(7, 0x0b1020).strokeRoundedRect(7, 8, 98, 38, 12);
+    g.fillStyle(0x334155).fillRoundedRect(7, 8, 98, 38, 12);
+    g.fillStyle(0xffd166).fillRoundedRect(18, 18, 24, 9, 4);
+    g.fillStyle(0xb978ff).fillRoundedRect(58, 17, 25, 14, 5);
+    g.fillStyle(0x94a3b8).fillRoundedRect(20, 42, 72, 7, 4);
+    g.fillStyle(0x34d5ff).fillCircle(91, 25, 5);
+  });
+  makeTexture(scene, "reactor", 96, 104, (g) => {
+    g.fillStyle(0x000000, 0.26).fillEllipse(48, 95, 82, 18);
+    g.lineStyle(8, 0x0b1020).strokeCircle(48, 50, 34);
+    g.fillStyle(0x263247).fillCircle(48, 50, 34);
+    g.fillStyle(0xb978ff, 0.28).fillCircle(48, 50, 25);
+    g.lineStyle(5, 0xb978ff, 0.9).strokeCircle(48, 50, 24);
+    g.fillStyle(0x5dff9d).fillCircle(48, 50, 9);
+    g.fillStyle(0x94a3b8).fillRoundedRect(18, 79, 60, 10, 5);
+  });
+  makeTexture(scene, "floor_rune", 48, 48, (g) => {
+    g.lineStyle(3, 0xb978ff, 0.72).strokeCircle(24, 24, 18);
+    g.lineStyle(2, 0x34d5ff, 0.5).strokeRoundedRect(9, 9, 30, 30, 7);
+    g.fillStyle(0xb978ff, 0.58).fillCircle(24, 24, 5);
+  });
+  makeTexture(scene, "warning_panel", 52, 26, (g) => {
+    g.lineStyle(4, 0x0b1020).strokeRoundedRect(3, 3, 46, 20, 6);
+    g.fillStyle(0x2a1b21).fillRoundedRect(3, 3, 46, 20, 6);
+    g.fillStyle(0xff4d6d).fillCircle(13, 13, 5);
+    g.fillStyle(0xffd166).fillRoundedRect(24, 8, 16, 3, 2).fillRoundedRect(24, 15, 11, 3, 2);
+  });
+  makeTexture(scene, "cable_junction", 38, 38, (g) => {
+    g.lineStyle(5, 0x0b1020).strokeCircle(19, 19, 12);
+    g.fillStyle(0x0f172a).fillCircle(19, 19, 12);
+    g.fillStyle(0x34d5ff).fillRoundedRect(16, 2, 6, 34, 3).fillRoundedRect(2, 16, 34, 6, 3);
+    g.fillStyle(0xffd166).fillCircle(19, 19, 4);
   });
 }
 
 function makePlayerTextures(scene) {
-  makeTexture(scene, "player_idle", 30, 34, (g) => drawPlayer(g, 0, 0));
-  for (let i = 0; i < 4; i += 1) {
-    const leg = i === 0 ? -3 : i === 1 ? 1 : i === 2 ? 3 : -1;
-    const arm = i === 0 ? 2 : i === 1 ? -1 : i === 2 ? -2 : 1;
-    makeTexture(scene, `player_walk_${i}`, 30, 34, (g) => drawPlayer(g, leg, arm));
+  makeTexture(scene, "player_idle", 56, 72, (g) => drawPlayer(g, 0, 0, 0));
+  for (let i = 0; i < 6; i += 1) {
+    const phase = (Math.PI * 2 * i) / 6;
+    makeTexture(scene, `player_walk_${i}`, 56, 72, (g) => drawPlayer(g, Math.sin(phase), Math.cos(phase), i));
   }
 }
 
-function drawPlayer(g, legOffset, armOffset) {
-  g.fillStyle(0x06090f).fillRect(7, 24 + legOffset, 6, 8);
-  g.fillStyle(0x06090f).fillRect(17, 24 - legOffset, 6, 8);
-  g.fillStyle(0x1d2938).fillRect(5, 9, 20, 19);
-  g.fillStyle(0x34d5ff).fillRect(8, 6, 14, 8);
-  g.fillStyle(0x0f172a).fillRect(10, 10, 10, 4);
-  g.fillStyle(0xffd166).fillRect(10, 17, 10, 8);
-  g.fillStyle(0x94a3b8).fillRect(3, 13 + armOffset, 5, 12);
-  g.fillStyle(0x94a3b8).fillRect(22, 13 - armOffset, 5, 12);
-  g.fillStyle(0x5dff9d).fillRect(12, 2, 6, 4);
+function drawPlayer(g, legPhase, armPhase) {
+  const outline = 0x0b1020;
+  const legA = 49 + legPhase * 3;
+  const legB = 49 - legPhase * 3;
+  const armA = 32 + armPhase * 3;
+  const armB = 32 - armPhase * 3;
+  g.fillStyle(0x000000, 0.2).fillEllipse(28, 62, 38, 12);
+
+  g.lineStyle(6, outline).strokeEllipse(18, legA, 13, 24);
+  g.lineStyle(6, outline).strokeEllipse(38, legB, 13, 24);
+  g.fillStyle(0x151c2b).fillEllipse(18, legA, 13, 24);
+  g.fillStyle(0x151c2b).fillEllipse(38, legB, 13, 24);
+  g.fillStyle(0x5dff9d).fillEllipse(18, legA + 7, 9, 9);
+  g.fillStyle(0x5dff9d).fillEllipse(38, legB + 7, 9, 9);
+
+  g.lineStyle(7, outline).strokeEllipse(28, 36, 38, 42);
+  g.fillStyle(0x263247).fillEllipse(28, 36, 38, 42);
+  g.fillStyle(0x384b68).fillEllipse(25, 30, 24, 24);
+  g.fillStyle(0xffd166).fillRoundedRect(19, 37, 18, 14, 5);
+  g.fillStyle(0x121826).fillRoundedRect(21, 40, 14, 6, 3);
+
+  g.lineStyle(5, outline).strokeEllipse(9, armA, 13, 24);
+  g.lineStyle(5, outline).strokeEllipse(47, armB, 13, 24);
+  g.fillStyle(0x8aa0bd).fillEllipse(9, armA, 13, 24);
+  g.fillStyle(0x8aa0bd).fillEllipse(47, armB, 13, 24);
+
+  g.lineStyle(6, outline).strokeCircle(28, 17, 18);
+  g.fillStyle(0x34d5ff).fillCircle(28, 17, 18);
+  g.fillStyle(0xbdf4ff).fillEllipse(22, 12, 14, 10);
+  g.fillStyle(0x07111f).fillRoundedRect(15, 18, 26, 10, 5);
+  g.fillStyle(0x5dff9d).fillCircle(28, 4, 4);
 }
 
 function makeWeapons(scene) {
-  makeTexture(scene, "weapon_pistol", 30, 10, (g) => {
-    g.fillStyle(0xe5e7eb).fillRect(2, 3, 20, 4);
-    g.fillStyle(0x64748b).fillRect(7, 7, 8, 3);
-    g.fillStyle(0xffd166).fillRect(22, 4, 6, 2);
+  makeTexture(scene, "weapon_pistol", 52, 20, (g) => {
+    g.lineStyle(5, 0x0b1020).strokeRoundedRect(6, 5, 34, 8, 3);
+    g.fillStyle(0xe5e7eb).fillRoundedRect(6, 5, 34, 8, 3);
+    g.fillStyle(0x64748b).fillRoundedRect(15, 12, 12, 7, 2);
+    g.fillStyle(0xffd166).fillRect(39, 8, 10, 3);
   });
-  makeTexture(scene, "weapon_shotgun", 42, 12, (g) => {
-    g.fillStyle(0xe5e7eb).fillRect(2, 4, 30, 4);
-    g.fillStyle(0x8b5a2b).fillRect(7, 8, 12, 3);
-    g.fillStyle(0xff8a4d).fillRect(32, 4, 8, 4);
+  makeTexture(scene, "weapon_shotgun", 72, 22, (g) => {
+    g.lineStyle(5, 0x0b1020).strokeRoundedRect(6, 6, 50, 8, 4);
+    g.fillStyle(0xdde5ee).fillRoundedRect(6, 6, 50, 8, 4);
+    g.fillStyle(0x8b5a2b).fillRoundedRect(14, 14, 20, 6, 2);
+    g.fillStyle(0xff8a4d).fillRoundedRect(55, 6, 12, 8, 3);
   });
-  makeTexture(scene, "weapon_rifle", 50, 10, (g) => {
-    g.fillStyle(0xe5e7eb).fillRect(2, 3, 39, 4);
-    g.fillStyle(0x334155).fillRect(12, 7, 12, 3);
-    g.fillStyle(0x34d5ff).fillRect(41, 4, 7, 2);
+  makeTexture(scene, "weapon_rifle", 82, 22, (g) => {
+    g.lineStyle(5, 0x0b1020).strokeRoundedRect(6, 6, 62, 7, 3);
+    g.fillStyle(0xe5e7eb).fillRoundedRect(6, 6, 62, 7, 3);
+    g.fillStyle(0x334155).fillRoundedRect(20, 13, 21, 6, 2);
+    g.fillStyle(0x34d5ff).fillRoundedRect(67, 7, 10, 4, 2);
+    g.fillStyle(0xffd166).fillRect(10, 2, 18, 4);
   });
 }
 
 function makeEnemies(scene) {
-  makeTexture(scene, "enemy_robot", 30, 30, (g) => {
-    g.fillStyle(0x263241).fillRect(4, 4, 22, 22);
-    g.fillStyle(0x94a3b8).fillRect(1, 18, 28, 5);
-    g.fillStyle(0xff4d6d).fillRect(9, 10, 4, 4).fillRect(18, 10, 4, 4);
-    g.fillStyle(0x0b1118).fillRect(11, 20, 10, 3);
+  makeTexture(scene, "enemy_robot", 56, 66, (g) => {
+    const outline = 0x18090f;
+    g.lineStyle(6, outline).strokeRoundedRect(10, 14, 36, 38, 12);
+    g.fillStyle(0x6e3a43).fillRoundedRect(10, 14, 36, 38, 12);
+    g.fillStyle(0xff4d6d).fillCircle(21, 28, 5).fillCircle(35, 28, 5);
+    g.fillStyle(0x2a1017).fillRoundedRect(18, 42, 20, 6, 3);
+    g.lineStyle(5, outline).strokeEllipse(12, 50, 13, 18);
+    g.lineStyle(5, outline).strokeEllipse(44, 50, 13, 18);
+    g.fillStyle(0x8a4b55).fillEllipse(12, 50, 13, 18).fillEllipse(44, 50, 13, 18);
+    g.fillStyle(0xffd166).fillRect(26, 8, 5, 8);
   });
-  makeTexture(scene, "enemy_drone", 28, 28, (g) => {
-    g.fillStyle(0x111827).fillRect(7, 7, 14, 14);
-    g.fillStyle(0xffd166).fillRect(11, 11, 6, 6);
-    g.fillStyle(0x94a3b8).fillRect(0, 11, 8, 6).fillRect(20, 11, 8, 6).fillRect(11, 0, 6, 8).fillRect(11, 20, 6, 8);
+  makeTexture(scene, "enemy_drone", 54, 52, (g) => {
+    const outline = 0x0b1020;
+    g.lineStyle(5, outline).strokeCircle(27, 26, 15);
+    g.fillStyle(0x273348).fillCircle(27, 26, 15);
+    g.fillStyle(0xffd166).fillCircle(27, 26, 7);
+    g.lineStyle(4, outline).strokeEllipse(7, 17, 16, 10);
+    g.lineStyle(4, outline).strokeEllipse(47, 17, 16, 10);
+    g.lineStyle(4, outline).strokeEllipse(7, 35, 16, 10);
+    g.lineStyle(4, outline).strokeEllipse(47, 35, 16, 10);
+    g.fillStyle(0x94a3b8).fillEllipse(7, 17, 16, 10).fillEllipse(47, 17, 16, 10).fillEllipse(7, 35, 16, 10).fillEllipse(47, 35, 16, 10);
+    g.fillStyle(0xff4d6d).fillCircle(27, 14, 3);
   });
-  makeTexture(scene, "enemy_turret", 34, 34, (g) => {
-    g.fillStyle(0x0f172a).fillRect(4, 4, 26, 26);
-    g.fillStyle(0x4b5563).fillRect(9, 9, 16, 16);
-    g.fillStyle(0xff4d6d).fillRect(17, 14, 15, 6);
-    g.fillStyle(0xffd166).fillRect(14, 14, 5, 6);
+  makeTexture(scene, "enemy_turret", 62, 58, (g) => {
+    const outline = 0x0b1020;
+    g.lineStyle(6, outline).strokeCircle(30, 32, 20);
+    g.fillStyle(0x374151).fillCircle(30, 32, 20);
+    g.fillStyle(0x111827).fillCircle(30, 32, 11);
+    g.lineStyle(5, outline).strokeRoundedRect(29, 24, 28, 11, 4);
+    g.fillStyle(0xff4d6d).fillRoundedRect(29, 24, 28, 11, 4);
+    g.fillStyle(0xffd166).fillCircle(30, 32, 5);
+    g.fillStyle(0x64748b).fillRoundedRect(14, 45, 32, 8, 4);
   });
-  makeTexture(scene, "enemy_arm", 44, 28, (g) => {
-    g.fillStyle(0x312246).fillRect(3, 6, 18, 16);
-    g.fillStyle(0xb978ff).fillRect(19, 10, 17, 8);
-    g.fillStyle(0xe9d5ff).fillRect(34, 7, 8, 14);
+  makeTexture(scene, "enemy_arm", 76, 58, (g) => {
+    const outline = 0x160c24;
+    g.lineStyle(6, outline).strokeRoundedRect(5, 15, 30, 28, 10);
+    g.fillStyle(0x49315f).fillRoundedRect(5, 15, 30, 28, 10);
+    g.lineStyle(5, outline).strokeRoundedRect(32, 22, 28, 12, 6);
+    g.fillStyle(0xb978ff).fillRoundedRect(32, 22, 28, 12, 6);
+    g.lineStyle(4, outline).strokeEllipse(63, 28, 18, 25);
+    g.fillStyle(0xe9d5ff).fillEllipse(63, 28, 18, 25);
+    g.fillStyle(0xff4d6d).fillCircle(20, 28, 5);
   });
-  makeTexture(scene, "boss_core", 78, 78, (g) => {
-    g.fillStyle(0x07080c).fillRect(5, 5, 68, 68);
-    g.fillStyle(0x1f2937).fillRect(12, 12, 54, 54);
-    g.fillStyle(0xff4d6d).fillRect(20, 20, 38, 38);
-    g.fillStyle(0x07080c).fillRect(28, 28, 22, 22);
-    g.fillStyle(0x5dff9d).fillRect(35, 35, 8, 8);
-    g.fillStyle(0x34d5ff).fillRect(4, 34, 70, 3).fillRect(34, 4, 3, 70);
+  makeTexture(scene, "boss_core", 112, 120, (g) => {
+    const outline = 0x080b14;
+    g.lineStyle(8, outline).strokeCircle(56, 58, 43);
+    g.fillStyle(0x1b2435).fillCircle(56, 58, 43);
+    g.lineStyle(5, 0xff4d6d, 0.95).strokeCircle(56, 58, 35);
+    g.fillStyle(0xff4d6d, 0.28).fillCircle(56, 58, 35);
+    g.fillStyle(0x07111f).fillCircle(56, 58, 20);
+    g.fillStyle(0x5dff9d).fillCircle(56, 58, 9);
+    g.fillStyle(0x34d5ff).fillRoundedRect(15, 55, 82, 6, 3).fillRoundedRect(53, 17, 6, 82, 3);
+    for (let i = 0; i < 8; i += 1) {
+      const a = (Math.PI * 2 * i) / 8;
+      g.fillStyle(i % 2 ? 0xb978ff : 0xffd166).fillCircle(56 + Math.cos(a) * 47, 58 + Math.sin(a) * 47, 5);
+    }
   });
 }
 
 function makePickups(scene) {
-  makeTexture(scene, "pickup_health", 24, 24, (g) => {
-    g.fillStyle(0x40151f).fillRect(3, 3, 18, 18);
-    g.fillStyle(0xff4d6d).fillRect(10, 6, 4, 12).fillRect(6, 10, 12, 4);
+  makeTexture(scene, "pickup_health", 38, 38, (g) => {
+    g.lineStyle(5, 0x0b1020).strokeCircle(19, 19, 14);
+    g.fillStyle(0x40151f).fillCircle(19, 19, 14);
+    g.fillStyle(0xff4d6d).fillRoundedRect(16, 9, 6, 20, 3).fillRoundedRect(9, 16, 20, 6, 3);
   });
-  makeTexture(scene, "pickup_energy", 24, 24, (g) => {
-    g.fillStyle(0x102a3a).fillRect(3, 3, 18, 18);
-    g.fillStyle(0x34d5ff).fillRect(9, 5, 7, 14);
-    g.fillStyle(0xffffff).fillRect(11, 8, 3, 8);
+  makeTexture(scene, "pickup_energy", 38, 38, (g) => {
+    g.lineStyle(5, 0x0b1020).strokeCircle(19, 19, 14);
+    g.fillStyle(0x102a3a).fillCircle(19, 19, 14);
+    g.fillStyle(0x34d5ff).fillRoundedRect(14, 8, 10, 22, 5);
+    g.fillStyle(0xffffff).fillRoundedRect(17, 12, 4, 14, 2);
   });
-  makeTexture(scene, "pickup_shotgun", 26, 18, (g) => {
-    g.fillStyle(0xff8a4d).fillRect(3, 7, 20, 4);
-    g.fillStyle(0x8b5a2b).fillRect(8, 11, 9, 3);
+  makeTexture(scene, "pickup_shotgun", 54, 36, (g) => {
+    g.lineStyle(5, 0x0b1020).strokeRoundedRect(6, 12, 38, 8, 4);
+    g.fillStyle(0xff8a4d).fillRoundedRect(6, 12, 38, 8, 4);
+    g.fillStyle(0x8b5a2b).fillRoundedRect(16, 20, 16, 6, 3);
   });
-  makeTexture(scene, "pickup_rifle", 30, 18, (g) => {
-    g.fillStyle(0x5dff9d).fillRect(3, 7, 24, 4);
-    g.fillStyle(0x334155).fillRect(10, 11, 10, 3);
+  makeTexture(scene, "pickup_rifle", 62, 36, (g) => {
+    g.lineStyle(5, 0x0b1020).strokeRoundedRect(6, 12, 48, 7, 4);
+    g.fillStyle(0x5dff9d).fillRoundedRect(6, 12, 48, 7, 4);
+    g.fillStyle(0x334155).fillRoundedRect(20, 19, 18, 6, 3);
   });
 }
 
@@ -1470,8 +1738,8 @@ function bootPhaser() {
     width: WORLD_W,
     height: WORLD_H,
     backgroundColor: "#07080c",
-    pixelArt: true,
-    roundPixels: true,
+    pixelArt: false,
+    roundPixels: false,
     scale: {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
