@@ -251,18 +251,24 @@ class RunScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image("lab_room_v1", "/assets/lab-room-v1.png");
+    this.load.image("lab_room_2027_v2", "/assets/lab-room-2027-v2.png");
     this.load.spritesheet("actors_v1", "/assets/actor-atlas-v1.png", {
       frameWidth: 512,
       frameHeight: 512,
+    });
+    this.load.spritesheet("scientist_walk_v1", "/assets/scientist-walk-v1.png", {
+      frameWidth: 362,
+      frameHeight: 724,
     });
   }
 
   create() {
     sceneRef = this;
     createTextures(this);
-    this.useArtBackground = this.textures.exists("lab_room_v1");
+    this.labBackgroundKey = "lab_room_2027_v2";
+    this.useArtBackground = this.textures.exists(this.labBackgroundKey);
     this.useActorAtlas = this.textures.exists("actors_v1");
+    this.useScientistSheet = this.textures.exists("scientist_walk_v1");
 
     this.activeGameplay = false;
     this.roomSprites = [];
@@ -316,15 +322,18 @@ class RunScene extends Phaser.Scene {
     this.playerBullets = this.physics.add.group();
     this.enemyBullets = this.physics.add.group();
 
-    this.playerBaseScale = this.useActorAtlas ? 0.17 : 1;
+    this.playerBaseScale = this.useScientistSheet ? 0.155 : this.useActorAtlas ? 0.17 : 1;
     this.player = this.physics.add.sprite(
       ROOM.x + 90,
       ROOM.y + ROOM.h / 2,
-      this.useActorAtlas ? "actors_v1" : "player_idle",
-      this.useActorAtlas ? 0 : undefined,
+      this.useScientistSheet ? "scientist_walk_v1" : this.useActorAtlas ? "actors_v1" : "player_idle",
+      this.useScientistSheet ? 3 : this.useActorAtlas ? 0 : undefined,
     );
     this.player.setDepth(35).setCollideWorldBounds(false).setVisible(false);
-    if (this.useActorAtlas) {
+    if (this.useScientistSheet) {
+      this.player.setScale(this.playerBaseScale);
+      this.player.body.setSize(130, 260, true);
+    } else if (this.useActorAtlas) {
       this.player.setScale(this.playerBaseScale);
       this.player.body.setSize(190, 220).setOffset(154, 210);
     } else {
@@ -388,7 +397,10 @@ class RunScene extends Phaser.Scene {
     this.clearRoomObjects();
     this.player.enableBody(true, ROOM.x + 92, ROOM.y + ROOM.h / 2, true, true);
     this.player.setVelocity(0, 0);
-    if (this.useActorAtlas) {
+    if (this.useScientistSheet) {
+      this.player.setTexture("scientist_walk_v1", 3).setVisible(true).setScale(this.playerBaseScale).clearTint();
+      this.weaponSprite.setVisible(false);
+    } else if (this.useActorAtlas) {
       this.player.setTexture("actors_v1", 0).setVisible(true).setScale(this.playerBaseScale).clearTint();
       this.weaponSprite.setVisible(false);
     } else {
@@ -475,7 +487,7 @@ class RunScene extends Phaser.Scene {
 
   createRoomFloor(seed, menuMode) {
     if (this.useArtBackground) {
-      const bg = this.add.image(WORLD_W / 2, WORLD_H / 2, "lab_room_v1")
+      const bg = this.add.image(WORLD_W / 2, WORLD_H / 2, this.labBackgroundKey)
         .setDepth(0)
         .setDisplaySize(WORLD_W, WORLD_H);
       this.roomSprites.push(bg);
@@ -660,19 +672,21 @@ class RunScene extends Phaser.Scene {
   updateWalkAnimation(dt, moving, running) {
     const base = this.playerBaseScale || 1;
     if (!moving) {
-      if (!this.useActorAtlas) this.player.setTexture("player_idle");
+      if (this.useScientistSheet) this.player.setFrame(3);
+      if (!this.useActorAtlas && !this.useScientistSheet) this.player.setTexture("player_idle");
       this.player.setScale(base, base);
       return;
     }
     this.walkClock += dt * (running ? 14 : 10);
     const frame = Math.floor(this.walkClock) % 6;
     const bob = Math.sin(this.walkClock * Math.PI * 2) * (running ? 0.045 : 0.03);
-    if (!this.useActorAtlas) this.player.setTexture(`player_walk_${frame}`);
+    if (this.useScientistSheet) this.player.setFrame(frame);
+    if (!this.useActorAtlas && !this.useScientistSheet) this.player.setTexture(`player_walk_${frame}`);
     this.player.setScale(base * (1 + bob), base * (1 - bob * 0.65));
   }
 
   updateWeaponSprite() {
-    if (this.useActorAtlas) {
+    if (this.useActorAtlas || this.useScientistSheet) {
       const angle = this.pointerAngle();
       this.player.setFlipX(Math.cos(angle) < 0);
       this.weaponSprite.setVisible(false);

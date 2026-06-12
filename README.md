@@ -30,7 +30,9 @@ http://127.0.0.1:8787/
 
 - Main menu with AI-2027-style incident UI
 - Neural network editor that changes boss behavior
-- Generated hand-drawn gameplay background and actor atlas
+- Generated grounded 2027 laboratory background
+- Generated scientist protagonist walk sheet with moving arms/legs
+- Generated enemy/boss actor atlas
 - Breach intro sequence
 - Top-down room combat
 - Robots, drones, turrets, manipulator arms
